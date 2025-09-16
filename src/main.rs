@@ -22,7 +22,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let token_address_str = "DRPcZEDqiA9ppVqJYPmj8kHBBWHLRKoeQJJAc5Ypump";
     let token_address = 
-        Pubkey::from_str("token_address_str").map_err(|_| {
+        Pubkey::from_str(token_address_str).map_err(|_| {
             error::Error::WrongSizeToken(
                 token_address_str
                     .as_bytes()
