@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("The address you gave is {0} bytes long. Solana address is aalways 32 bytes long")]
+    #[error("The address you gave is {0} bytes long. Solana address is always 32 bytes long")]
     WrongSizeToken(usize),
     #[error("The token you want to analyze does not exist. Address used: `{0}`")]
     TokenNotFound(Pubkey),
@@ -12,10 +12,8 @@ pub enum Error {
         "The address you entered is not owned by TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA. Owner: {0}"
     )]
     NotAToken(Pubkey),
-    #[error(
-        "The token you want to analyze doesn't have any transactions."
-    )]
-    NoTransactionRecorded, 
+    #[error("The token you want to analyze doesn't have any transactions.")]
+    NoTransactionRecorded,
     #[error(
         "The token you want to analyze has more than 1000 transactions. {transactions_fetched} Transactions fetched"
     )]
