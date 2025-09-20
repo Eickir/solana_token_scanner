@@ -17,3 +17,6 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 base64 = "0.22.1"
 borsh = "1.5.7"
+indicatif = "0.18.0"
+futures = "0.3.31"
+polars = { version = "0.41", features = ["fmt"] }
