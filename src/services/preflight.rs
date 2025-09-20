@@ -23,6 +23,7 @@ async fn preflight_token_check(
     rpc_client: &RpcClient,
     token_address: Pubkey,
 ) -> error::Result<TokenPreflight> {
+    
     let signatures = rpc_client
         .get_signatures_for_address(&token_address)
         .await?;
@@ -36,7 +37,11 @@ async fn preflight_token_check(
         });
     }
 
-    let tx_sigs: Vec<String> = signatures.into_iter().map(|s| s.signature).collect();
+    let tx_sigs: Vec<String> = signatures.into_iter().filter(|signature| signature.err.is_none()).map(|s| s.signature).collect();
+    let last_element =  tx_sigs.len().saturating_sub(100);
+    let mut last_100: Vec<String> = tx_sigs[last_element..].to_vec();
+    last_100.reverse();
+    
 
     let creation_signature = tx_sigs.last().cloned().unwrap_or_default();
 
@@ -74,9 +79,7 @@ async fn preflight_token_check(
     Ok(TokenPreflight::new(
         token_address,
         platform,
-        tx_sigs.len(),
-        creation_signature,
-        tx_sigs,
+        last_100,
     ))
 }
 
@@ -86,8 +89,8 @@ async fn token_preflight(rpc_client: &RpcClient, token_address: Pubkey) -> Resul
     preflight_token_check(rpc_client, token_address).await
 }
 
-pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey) -> error::Result<()> {
+pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey) -> error::Result<TokenPreflight> {
     let preflight = token_preflight(&rpc_client, token_address).await?;
     tracing::info!(%preflight, "✅ token prêt pour analyse");
-    Ok(())
+    Ok(preflight)
 }
