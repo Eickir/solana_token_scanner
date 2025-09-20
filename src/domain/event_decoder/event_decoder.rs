@@ -5,7 +5,6 @@ use crate::platforms::platforms::Platform;
 pub enum EventKind {
     Create,
     Trade,
-    Unknown, 
 }
 
 pub trait EventDecoder {
