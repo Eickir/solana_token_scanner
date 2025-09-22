@@ -1,4 +1,3 @@
-use crate::identify_platform;
 use crate::infra::solana_rpc::extract_account_keys;
 use crate::infra::solana_rpc::fetch_account;
 use crate::{domain::analysis::TokenPreflight, error, error::Result};
@@ -10,15 +9,16 @@ use solana_sdk::signature::Signature;
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use solana_transaction_status_client_types::UiTransactionEncoding;
 use spl_token::ID;
-use crate::TradeEvent;
-use crate::Platform;
+use crate::domain::event_decoder::helpers::extract_logs;
+use crate::platforms::pumpfun::events::TradeEvent;
+use crate::platforms::platforms::Platform;
 use std::str::FromStr;
 use crate::platforms::pumpfun::pumpfun::PumpFun;
 use solana_transaction_status_client_types::EncodedTransaction;
-use crate::retrieve_transactions;
-use crate::extract_logs;
 use crate::domain::event_decoder::event_decoder::EventDecoder;
-use crate::EventKind;
+use crate::domain::event_decoder::event_decoder::EventKind;
+use crate::platforms::utils::identify_platform;
+use crate::infra::solana_rpc::retrieve_transactions;
 
 fn ensure_token_is_token_account(account: &Account) -> error::Result<()> {
     match account.owner {

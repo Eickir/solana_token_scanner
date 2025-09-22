@@ -5,7 +5,7 @@ use crate::domain::event_decoder::event_decoder::EventKind;
 use crate::domain::event_decoder::helpers::{
     read_bool_u8, read_pubkey, read_string, read_u16_le, read_u64_le,
 };
-use crate::event_decoder::decode_error::DecodeError;
+use crate::domain::event_decoder::decode_error::DecodeError;
 use crate::platforms::platforms::Platform;
 
 pub const CREATE_DISCRIMINATOR: [u8; 8] = [27, 114, 169, 77, 222, 235, 99, 118];

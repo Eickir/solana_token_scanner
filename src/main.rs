@@ -9,11 +9,12 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 mod services;
 use services::preflight::run_analysis;
 mod platforms;
-use platforms::utils::identify_platform;
+use solana_client::rpc_config::RpcTransactionConfig;
+use solana_sdk::commitment_config::CommitmentConfig;
+use solana_transaction_status_client_types::UiTransactionEncoding;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    
     dotenv().ok();
     tracing_subscriber::registry()
         .with(EnvFilter::new("info"))
@@ -24,19 +25,22 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let rpc_client = RpcClient::new(rpc_url);
 
     let token_address_str = "CAeA3EnXgnPrX4YswxKoEowEAdJTZY6AhGGnMNJ3pump";
-    let token_address = 
-        Pubkey::from_str(token_address_str).map_err(|_| {
-            error::Error::WrongSizeToken(
-                token_address_str
-                    .as_bytes()
-                    .len(),
-            )
-        })?;
+    let token_address = Pubkey::from_str(token_address_str)
+        .map_err(|_| error::Error::WrongSizeToken(token_address_str.as_bytes().len()))?;
 
-    if let Err(e) = run_analysis(&rpc_client, token_address).await {
+    let config = RpcTransactionConfig {
+        encoding: Some(UiTransactionEncoding::Json),
+        commitment: Some(CommitmentConfig::confirmed()),
+        max_supported_transaction_version: Some(0),
+    };
+
+    let analysis = run_analysis(&rpc_client, token_address, &config).await;
+
+    if let Err(e) = analysis {
         tracing::error!("❌ {e}");
         std::process::exit(1);
-    }
+    } 
 
     Ok(())
 }
+
