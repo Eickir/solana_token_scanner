@@ -1,4 +1,3 @@
-use crate::identify_platform;
 use crate::infra::solana_rpc::extract_account_keys;
 use crate::infra::solana_rpc::fetch_account;
 use crate::{domain::analysis::TokenPreflight, error, error::Result};
@@ -10,7 +9,16 @@ use solana_sdk::signature::Signature;
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use solana_transaction_status_client_types::UiTransactionEncoding;
 use spl_token::ID;
+use crate::domain::event_decoder::helpers::extract_logs;
+use crate::platforms::pumpfun::events::TradeEvent;
+use crate::platforms::platforms::Platform;
 use std::str::FromStr;
+use crate::platforms::pumpfun::pumpfun::PumpFun;
+use solana_transaction_status_client_types::EncodedTransaction;
+use crate::domain::event_decoder::event_decoder::EventDecoder;
+use crate::domain::event_decoder::event_decoder::EventKind;
+use crate::platforms::utils::identify_platform;
+use crate::infra::solana_rpc::retrieve_transactions;
 
 fn ensure_token_is_token_account(account: &Account) -> error::Result<()> {
     match account.owner {
@@ -89,8 +97,63 @@ async fn token_preflight(rpc_client: &RpcClient, token_address: Pubkey) -> Resul
     preflight_token_check(rpc_client, token_address).await
 }
 
-pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey) -> error::Result<TokenPreflight> {
+pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config: &RpcTransactionConfig,) -> error::Result<(TokenPreflight, Vec<TradeEvent>)> {
+    
     let preflight = token_preflight(&rpc_client, token_address).await?;
     tracing::info!(%preflight, "✅ token prêt pour analyse");
-    Ok(preflight)
+    
+    let txs = retrieve_transactions(
+        &rpc_client,
+        preflight.transactions_to_analyze.clone(),
+        *config,
+    ).await?;
+
+    let mut decoded_trade: Vec<TradeEvent> = Vec::new();
+
+    match preflight.platform {
+        Some(Platform::PumpFun) => {
+            let my_platform = PumpFun;
+
+            for tx in &txs {
+                // a) Récupérer la signature lisible (utile à logguer/attacher au TradeEvent)
+                let signature = match &tx.transaction.transaction {
+                    EncodedTransaction::Json(inner) => inner
+                        .signatures
+                        .first()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                    _ => String::new(),
+                };
+
+                // b) Extraire les blobs logs “Program data:” (Vec<Vec<u8>>)
+                if let Some(blobs) = extract_logs(tx) {
+                    for blob in blobs {
+                        // Selon ton impl: si `classify` attend le discriminant, sépare 8+payload ici.
+                        // Sinon, si elle gère le blob complet (disc en tête), passe `&blob` direct.
+                        if let Some(kind) = my_platform.classify(&blob) {
+                            match kind {
+                                EventKind::Create => {
+                                    // Utile si tu veux aucher le mint/creator au TGE
+                                    let _create = my_platform.decode_create(&blob)?;
+                                }
+                                EventKind::Trade => {
+                                    // Ici ta signature est disponible si ton decode_trade en a besoin
+                                    let trade = my_platform.decode_trade(&signature, &blob)?;
+                                    if trade.mint == token_address {
+                                        decoded_trade.push(trade);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {
+        }
+    }
+
+    tracing::info!("✅ token prêt pour analyse: {} trades décodés", decoded_trade.len());
+    Ok((preflight, decoded_trade))
+
 }

@@ -1,6 +1,7 @@
 use solana_client::client_error::ClientError;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
+use crate::domain::event_decoder::decode_error::DecodeError;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -18,6 +19,8 @@ pub enum Error {
         "The token you want to analyze has more than 1000 transactions. {transactions_fetched} Transactions fetched"
     )]
     TooManyTransactions { transactions_fetched: usize },
+    #[error(transparent)]
+    Decode(#[from] DecodeError),
     #[error(transparent)]
     Upstream(#[from] ClientError),
 }

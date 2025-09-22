@@ -5,7 +5,7 @@ use crate::domain::event_decoder::event_decoder::EventKind;
 use crate::domain::event_decoder::helpers::{
     read_bool_u8, read_pubkey, read_string, read_u16_le, read_u64_le,
 };
-use crate::event_decoder::decode_error::DecodeError;
+use crate::domain::event_decoder::decode_error::DecodeError;
 use crate::platforms::platforms::Platform;
 
 pub const CREATE_DISCRIMINATOR: [u8; 8] = [27, 114, 169, 77, 222, 235, 99, 118];
@@ -68,7 +68,7 @@ impl EventDecoder for PumpFun {
         })
     }
 
-    fn decode_trade(&self, mut payload: &[u8]) -> Result<Self::Trade> {
+    fn decode_trade(&self, signature: &String, mut payload: &[u8]) -> Result<Self::Trade> {
         if payload.len() < 8 {
             return Err(DecodeError::ShortBuffer("discriminator"));
         }
@@ -97,6 +97,7 @@ impl EventDecoder for PumpFun {
         let last_update_timestamp = read_u64_le(&mut payload)?;
 
         Ok(Self::Trade {
+            signature: signature.to_string(), 
             mint,
             sol_amount,
             token_amount,
