@@ -68,7 +68,7 @@ impl EventDecoder for PumpFun {
         })
     }
 
-    fn decode_trade(&self, mut payload: &[u8]) -> Result<Self::Trade> {
+    fn decode_trade(&self, signature: &String, mut payload: &[u8]) -> Result<Self::Trade> {
         if payload.len() < 8 {
             return Err(DecodeError::ShortBuffer("discriminator"));
         }
@@ -97,6 +97,7 @@ impl EventDecoder for PumpFun {
         let last_update_timestamp = read_u64_le(&mut payload)?;
 
         Ok(Self::Trade {
+            signature: signature.to_string(), 
             mint,
             sol_amount,
             token_amount,

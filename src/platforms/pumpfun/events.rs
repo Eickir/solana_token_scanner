@@ -18,6 +18,7 @@ pub struct CreateEvent {
 
 #[derive(Debug)]
 pub struct TradeEvent {
+    pub signature: String, 
     pub mint: Pubkey,
     pub sol_amount: u64,
     pub token_amount: u64,
