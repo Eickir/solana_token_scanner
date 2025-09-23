@@ -1,12 +1,22 @@
 use super::events::{CreateEvent, TradeEvent};
-use crate::domain::event_decoder::decode_error::Result;
-use crate::domain::event_decoder::event_decoder::EventDecoder;
-use crate::domain::event_decoder::event_decoder::EventKind;
-use crate::domain::event_decoder::helpers::{
+use crate::domain::decoder::account::AccountDecoder;
+use crate::domain::decoder::error::Result;
+use crate::domain::decoder::event::EventDecoder;
+use crate::domain::decoder::event::EventKind;
+use crate::domain::decoder::helpers::{
     read_bool_u8, read_pubkey, read_string, read_u16_le, read_u64_le,
 };
-use crate::domain::event_decoder::decode_error::DecodeError;
+use crate::platforms::pumpfun::events::TradeEventWire;
+use std::str::FromStr;
+use crate::platforms::pumpfun::accounts::BondingCurve;
+use super::super::constants::PUMPFUN_PROGRAM_ID;
+use borsh::BorshDeserialize;
+use spl_token::ID;
+use crate::domain::decoder::error::DecodeError;
+use crate::domain::decoder::account::AccountKind;
 use crate::platforms::platforms::Platform;
+use solana_sdk::pubkey::Pubkey;
+
 
 pub const CREATE_DISCRIMINATOR: [u8; 8] = [27, 114, 169, 77, 222, 235, 99, 118];
 pub const TRADE_DISCRIMINATOR: [u8; 8] = [189, 219, 127, 211, 78, 230, 97, 238];
@@ -39,33 +49,10 @@ impl EventDecoder for PumpFun {
         }
         payload = &payload[8..];
 
-        let name = read_string(&mut payload)?;
-        let symbol = read_string(&mut payload)?;
-        let uri = read_string(&mut payload)?;
-        let mint = read_pubkey(&mut payload)?;
-        let bonding_curve = read_pubkey(&mut payload)?;
-        let user = read_pubkey(&mut payload)?;
-        let creator = read_pubkey(&mut payload)?;
-        let timestamp = read_u64_le(&mut payload)?;
-        let vtok = read_u64_le(&mut payload)?;
-        let vsol = read_u64_le(&mut payload)?;
-        let rtok = read_u64_le(&mut payload)?;
-        let supply = read_u64_le(&mut payload)?;
+        let decoded_create = Self::Create::deserialize_reader(&mut payload)?;
 
-        Ok(Self::Create {
-            name,
-            symbol,
-            uri,
-            mint,
-            bonding_curve,
-            user,
-            creator,
-            timestamp,
-            virtual_token_reserves: vtok,
-            virtual_sol_reserves: vsol,
-            real_token_reserves: rtok,
-            token_total_supply: supply,
-        })
+        Ok(decoded_create)
+           
     }
 
     fn decode_trade(&self, signature: &String, mut payload: &[u8]) -> Result<Self::Trade> {
@@ -74,51 +61,48 @@ impl EventDecoder for PumpFun {
         }
         payload = &payload[8..];
 
-        let mint = read_pubkey(&mut payload)?;
-        let sol_amount = read_u64_le(&mut payload)?;
-        let token_amount = read_u64_le(&mut payload)?;
-        let is_buy = read_bool_u8(&mut payload)?;
-        let user = read_pubkey(&mut payload)?;
-        let timestamp = read_u64_le(&mut payload)?;
-        let virtual_sol_reserves = read_u64_le(&mut payload)?;
-        let virtual_token_reserves = read_u64_le(&mut payload)?;
-        let real_sol_reserves = read_u64_le(&mut payload)?;
-        let real_token_reserves = read_u64_le(&mut payload)?;
-        let fee_recipient = read_pubkey(&mut payload)?;
-        let fee_basis_points = read_u16_le(&mut payload)?;
-        let fee = read_u64_le(&mut payload)?;
-        let creator = read_pubkey(&mut payload)?;
-        let creator_fee_basis_points = read_u16_le(&mut payload)?;
-        let creator_fee = read_u64_le(&mut payload)?;
-        let track_volume = read_bool_u8(&mut payload)?;
-        let total_unclaimed_tokens = read_u64_le(&mut payload)?;
-        let total_claimed_tokens = read_u64_le(&mut payload)?;
-        let current_sol_volume = read_u64_le(&mut payload)?;
-        let last_update_timestamp = read_u64_le(&mut payload)?;
+        let wire: TradeEventWire = TradeEventWire::deserialize_reader(&mut payload)?;
 
-        Ok(Self::Trade {
-            signature: signature.to_string(), 
-            mint,
-            sol_amount,
-            token_amount,
-            is_buy,
-            user,
-            timestamp,
-            virtual_sol_reserves,
-            virtual_token_reserves,
-            real_sol_reserves,
-            real_token_reserves,
-            fee_recipient,
-            fee_basis_points,
-            fee,
-            creator,
-            creator_fee_basis_points,
-            creator_fee,
-            track_volume,
-            total_unclaimed_tokens,
-            total_claimed_tokens,
-            current_sol_volume,
-            last_update_timestamp,
-        })
+        Ok((signature.to_string(), wire).into())
+
     }
+
+}
+
+impl AccountDecoder for PumpFun {
+
+    type BondingCurve = BondingCurve;
+    
+    fn platform(&self) -> Platform {
+        Platform::PumpFun
+    }
+
+    fn classify(&self, owner: &Pubkey) -> Option<AccountKind> {
+
+        let pump_program = Pubkey::from_str(PUMPFUN_PROGRAM_ID).expect("Wrong address");
+
+        match *owner {
+            x if x == pump_program => Some(AccountKind::BondingCurve), 
+            ID => Some(AccountKind::Mint), 
+            _ => {
+                None
+            }
+
+        } 
+        
+    }
+
+    fn decode_bonding_curve_account(&self, account_data: &Vec<u8>) -> Result<Self::BondingCurve> {
+
+        if account_data.len() < 8 {
+                return Err(DecodeError::ShortBuffer("anchor discriminator"));
+            }
+            let mut cursor = &account_data[8..];
+
+            let bc = BondingCurve::deserialize_reader(&mut cursor)?;
+
+            Ok(bc)
+        
+    }
+
 }
