@@ -1,4 +1,4 @@
-use crate::domain::event_decoder::decode_error::Result;
+use super::error::Result;
 use crate::platforms::platforms::Platform;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
