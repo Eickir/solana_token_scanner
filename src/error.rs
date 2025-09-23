@@ -1,7 +1,7 @@
 use solana_client::client_error::ClientError;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
-use crate::domain::event_decoder::decode_error::DecodeError;
+use crate::domain::decoder::error::DecodeError;
 
 #[derive(Error, Debug)]
 pub enum Error {

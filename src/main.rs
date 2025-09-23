@@ -21,7 +21,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .with(fmt::layer().compact())
         .init();
 
-    let rpc_url = std::env::var("SHYFT_RPC_URL").unwrap();
+    let rpc_url = std::env::var("RPC_URL").unwrap();
     let rpc_client = RpcClient::new(rpc_url);
 
     let token_address_str = "CAeA3EnXgnPrX4YswxKoEowEAdJTZY6AhGGnMNJ3pump";
@@ -43,4 +43,3 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

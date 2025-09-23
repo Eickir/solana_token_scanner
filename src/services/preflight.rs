@@ -1,5 +1,6 @@
 use crate::infra::solana_rpc::extract_account_keys;
 use crate::infra::solana_rpc::fetch_account;
+use crate::platforms::pumpfun::events::CreateEvent;
 use crate::{domain::analysis::TokenPreflight, error, error::Result};
 use solana_client::client_error::ClientError;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -9,14 +10,14 @@ use solana_sdk::signature::Signature;
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use solana_transaction_status_client_types::UiTransactionEncoding;
 use spl_token::ID;
-use crate::domain::event_decoder::helpers::extract_logs;
+use crate::domain::decoder::helpers::extract_logs;
 use crate::platforms::pumpfun::events::TradeEvent;
 use crate::platforms::platforms::Platform;
 use std::str::FromStr;
 use crate::platforms::pumpfun::pumpfun::PumpFun;
 use solana_transaction_status_client_types::EncodedTransaction;
-use crate::domain::event_decoder::event_decoder::EventDecoder;
-use crate::domain::event_decoder::event_decoder::EventKind;
+use crate::domain::decoder::event::EventDecoder;
+use crate::domain::decoder::event::EventKind;
 use crate::platforms::utils::identify_platform;
 use crate::infra::solana_rpc::retrieve_transactions;
 
@@ -97,7 +98,7 @@ async fn token_preflight(rpc_client: &RpcClient, token_address: Pubkey) -> Resul
     preflight_token_check(rpc_client, token_address).await
 }
 
-pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config: &RpcTransactionConfig,) -> error::Result<(TokenPreflight, Vec<TradeEvent>)> {
+pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config: &RpcTransactionConfig,) -> error::Result<(TokenPreflight, Vec<TradeEvent>, Vec<CreateEvent>)> {
     
     let preflight = token_preflight(&rpc_client, token_address).await?;
     tracing::info!(%preflight, "✅ token prêt pour analyse");
@@ -108,6 +109,7 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
         *config,
     ).await?;
 
+    let mut decoded_create: Vec<CreateEvent> = Vec::new();
     let mut decoded_trade: Vec<TradeEvent> = Vec::new();
 
     match preflight.platform {
@@ -134,7 +136,10 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
                             match kind {
                                 EventKind::Create => {
                                     // Utile si tu veux aucher le mint/creator au TGE
-                                    let _create = my_platform.decode_create(&blob)?;
+                                    let create = my_platform.decode_create(&blob)?;
+                                    if create.mint == token_address {
+                                        decoded_create.push(create);
+                                    }
                                 }
                                 EventKind::Trade => {
                                     // Ici ta signature est disponible si ton decode_trade en a besoin
@@ -154,6 +159,6 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
     }
 
     tracing::info!("✅ token prêt pour analyse: {} trades décodés", decoded_trade.len());
-    Ok((preflight, decoded_trade))
+    Ok((preflight, decoded_trade, decoded_create))
 
 }

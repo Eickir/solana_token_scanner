@@ -48,7 +48,7 @@ pub async fn retrieve_transactions(
     config: RpcTransactionConfig,
 ) -> std::result::Result<Vec<EncodedConfirmedTransactionWithStatusMeta>, ClientError> {
     const MAX_CONCURRENT: usize = 10;
-    const TARGET_RPS: u32 = 20; // plafond global de ton RPC
+    const TARGET_RPS: u32 = 13; // plafond global de ton RPC
     let tick_every = Duration::from_millis(1_000 / TARGET_RPS as u64);
 
     // Crée un intervalle global et partage-le entre futures
