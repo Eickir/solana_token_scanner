@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
-use std::str::FromStr;
+use solana_sdk::{lamports, pubkey::Pubkey};
+use std::{collections::HashMap, str::FromStr};
 mod domain;
 mod error;
 mod infra;
@@ -12,6 +12,7 @@ mod platforms;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_transaction_status_client_types::UiTransactionEncoding;
+use domain::token_stats::TokenStats;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -41,5 +42,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     } 
 
+    let (token_preflight, decoded_trade, decoded_create) = analysis.unwrap();
+    println!("CreateEvent: {:?}",decoded_create);
+    println!("TokenStats: {:?}", TokenStats::new(&decoded_trade));
+
+    
     Ok(())
 }
