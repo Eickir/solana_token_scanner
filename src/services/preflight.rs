@@ -98,7 +98,7 @@ async fn token_preflight(rpc_client: &RpcClient, token_address: Pubkey) -> Resul
     preflight_token_check(rpc_client, token_address).await
 }
 
-pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config: &RpcTransactionConfig,) -> error::Result<(TokenPreflight, Vec<TradeEvent>, Vec<CreateEvent>)> {
+pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config: &RpcTransactionConfig,) -> error::Result<(TokenPreflight, Vec<TradeEvent>, Option<CreateEvent>)> {
     
     let preflight = token_preflight(&rpc_client, token_address).await?;
     tracing::info!(%preflight, "✅ token prêt pour analyse");
@@ -109,7 +109,7 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
         *config,
     ).await?;
 
-    let mut decoded_create: Vec<CreateEvent> = Vec::new();
+    let mut decoded_create: Option<CreateEvent> = None;
     let mut decoded_trade: Vec<TradeEvent> = Vec::new();
 
     match preflight.platform {
@@ -127,6 +127,8 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
                     _ => String::new(),
                 };
 
+                let slot= tx.slot;
+
                 // b) Extraire les blobs logs “Program data:” (Vec<Vec<u8>>)
                 if let Some(blobs) = extract_logs(tx) {
                     for blob in blobs {
@@ -136,14 +138,14 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
                             match kind {
                                 EventKind::Create => {
                                     // Utile si tu veux aucher le mint/creator au TGE
-                                    let create = my_platform.decode_create(&blob)?;
-                                    if create.mint == token_address {
-                                        decoded_create.push(create);
+                                    let create = my_platform.decode_create(&signature, slot, &blob)?;
+                                    if create.mint == token_address && decoded_create.is_none() {
+                                        decoded_create = Some(create);
                                     }
                                 }
                                 EventKind::Trade => {
                                     // Ici ta signature est disponible si ton decode_trade en a besoin
-                                    let trade = my_platform.decode_trade(&signature, &blob)?;
+                                    let trade = my_platform.decode_trade(&signature, slot, &blob)?;
                                     if trade.mint == token_address {
                                         decoded_trade.push(trade);
                                     }

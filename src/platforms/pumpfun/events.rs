@@ -1,8 +1,8 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use solana_sdk::pubkey::Pubkey;
 
-#[derive(Debug, BorshDeserialize, BorshSerialize)]
-pub struct CreateEvent {
+#[derive(Debug, BorshDeserialize)]
+pub struct CreateEventWire {
     pub name: String,
     pub symbol: String,
     pub uri: String,
@@ -15,6 +15,50 @@ pub struct CreateEvent {
     pub virtual_sol_reserves: u64,
     pub real_token_reserves: u64,
     pub token_total_supply: u64,
+}
+
+#[derive(Debug)]
+pub struct CreateEvent {
+    pub signature: String, 
+    pub slot: u64, 
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub mint: Pubkey,
+    pub bonding_curve: Pubkey,
+    pub user: Pubkey,
+    pub creator: Pubkey,
+    pub timestamp: u64,
+    pub virtual_token_reserves: u64,
+    pub virtual_sol_reserves: u64,
+    pub real_token_reserves: u64,
+    pub token_total_supply: u64,
+}
+
+impl From<(String, u64, CreateEventWire)> for CreateEvent {
+
+    fn from((signature, slot, w): (String, u64, CreateEventWire)) -> Self {
+
+        Self {
+            signature, 
+            slot, 
+            name: w.name,
+            symbol: w.symbol,
+            uri: w.uri,
+            mint: w.mint,
+            bonding_curve: w.bonding_curve,
+            user: w.user,
+            creator: w.creator,
+            timestamp: w.timestamp,
+            virtual_token_reserves: w.virtual_token_reserves,
+            virtual_sol_reserves: w.virtual_sol_reserves,
+            real_token_reserves: w.real_token_reserves,
+            token_total_supply: w.token_total_supply,
+        }
+        
+    }
+
+
 }
 
 #[derive(Debug, BorshDeserialize)]
@@ -46,6 +90,7 @@ pub struct TradeEventWire {
 #[derive(Debug)]
 pub struct TradeEvent {
     pub signature: String, 
+    pub slot: u64,
     pub mint: Pubkey,
     pub sol_amount: u64,
     pub token_amount: u64,
@@ -69,10 +114,11 @@ pub struct TradeEvent {
     pub last_update_timestamp: u64,
 }
 
-impl From<(String, TradeEventWire)> for TradeEvent {
-    fn from((signature, w): (String, TradeEventWire)) -> Self {
+impl From<(String, u64, TradeEventWire)> for TradeEvent {
+    fn from((signature, slot, w): (String, u64, TradeEventWire)) -> Self {
         TradeEvent {
             signature,
+            slot, 
             mint: w.mint,
             sol_amount: w.sol_amount,
             token_amount: w.token_amount,

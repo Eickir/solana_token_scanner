@@ -13,6 +13,6 @@ pub trait EventDecoder {
 
     fn platform(&self) -> Platform;
     fn classify(&self, payload: &[u8]) -> Option<EventKind>;
-    fn decode_create(&self, payload: &[u8]) -> Result<Self::Create>;
-    fn decode_trade(&self, signature: &String, payload: &[u8]) -> Result<Self::Trade>;
+    fn decode_create(&self, signature: &String, slot: u64, payload: &[u8]) -> Result<Self::Create>;
+    fn decode_trade(&self, signature: &String, slot: u64, payload: &[u8]) -> Result<Self::Trade>;
 }

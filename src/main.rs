@@ -44,7 +44,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let (token_preflight, decoded_trade, decoded_create) = analysis.unwrap();
     println!("CreateEvent: {:?}",decoded_create);
-    println!("TokenStats: {:?}", TokenStats::new(&decoded_trade));
+    if let Some(creation) = decoded_create {
+        println!("TokenStats: {:?}", TokenStats::new(&decoded_trade, &creation));
+    }
 
     
     Ok(())

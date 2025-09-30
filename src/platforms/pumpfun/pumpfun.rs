@@ -16,6 +16,7 @@ use crate::domain::decoder::error::DecodeError;
 use crate::domain::decoder::account::AccountKind;
 use crate::platforms::platforms::Platform;
 use solana_sdk::pubkey::Pubkey;
+use crate::platforms::pumpfun::events::CreateEventWire;
 
 
 pub const CREATE_DISCRIMINATOR: [u8; 8] = [27, 114, 169, 77, 222, 235, 99, 118];
@@ -43,19 +44,19 @@ impl EventDecoder for PumpFun {
 
     }
 
-    fn decode_create(&self, mut payload: &[u8]) -> Result<Self::Create> {
+    fn decode_create(&self, signature: &String, slot: u64, mut payload: &[u8]) -> Result<Self::Create> {
         if payload.len() < 8 {
             return Err(DecodeError::ShortBuffer("discriminator"));
         }
         payload = &payload[8..];
 
-        let decoded_create = Self::Create::deserialize_reader(&mut payload)?;
+        let wire = CreateEventWire::deserialize_reader(&mut payload)?;
 
-        Ok(decoded_create)
+        Ok((signature.to_string(), slot, wire).into())
            
     }
 
-    fn decode_trade(&self, signature: &String, mut payload: &[u8]) -> Result<Self::Trade> {
+    fn decode_trade(&self, signature: &String, slot: u64, mut payload: &[u8]) -> Result<Self::Trade> {
         if payload.len() < 8 {
             return Err(DecodeError::ShortBuffer("discriminator"));
         }
@@ -63,7 +64,7 @@ impl EventDecoder for PumpFun {
 
         let wire: TradeEventWire = TradeEventWire::deserialize_reader(&mut payload)?;
 
-        Ok((signature.to_string(), wire).into())
+        Ok((signature.to_string(), slot, wire).into())
 
     }
 
