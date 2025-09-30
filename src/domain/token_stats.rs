@@ -1,5 +1,6 @@
-use crate::platforms::pumpfun::events::TradeEvent;
+use crate::platforms::pumpfun::events::{TradeEvent, CreateEvent};
 use std::collections::{HashMap, HashSet};
+use std::f64;
 use std::hash::Hash;
 use solana_sdk::pubkey::Pubkey;
 
@@ -16,8 +17,6 @@ pub struct TokenStats {
     pub sell_volume_sol: f64,
     pub buyers_count: usize,
     pub sellers_count: usize,
-
-    // --- Nouveaux champs ---
     pub avg_trades_per_second: Option<f64>,
     pub avg_trades_per_wallet: Option<f64>,
     pub avg_volume_per_wallet_sol: Option<f64>,
@@ -27,19 +26,27 @@ pub struct TokenStats {
     pub full_range_len: usize,
     pub seconds_with_trades: usize,
     pub coverage_ratio: f64,
+    pub snipers_count: Option<u64>, 
+    pub snipers_sol_vol: Option<f64>, 
+    pub snipers_token_vol: Option<f64>, 
+    pub snipers_initial_share: Option<f64>
+
 }
 
 impl TokenStats {
-    pub fn new(trades: &Vec<TradeEvent>) -> Self {
+    pub fn new(trades: &Vec<TradeEvent>, create: &CreateEvent) -> Self {
         // --- agrégats "historiques" (inchangés) ---
         let mut total_trades = 0usize;
         let mut total_lamports: u128 = 0;
+        let mut snipers_lamports: Option<u64> = None;
+        let mut snipers_token: Option<u64> = None;
         let mut buy_lamports: u128 = 0;
         let mut sell_lamports: u128 = 0;
         let mut buy_count = 0usize;
         let mut sell_count = 0usize;
 
         let mut makers = HashSet::<Pubkey>::new();
+        let mut snipers= HashSet::<Pubkey>::new();
         let mut buyers = HashSet::<Pubkey>::new();
         let mut sellers = HashSet::<Pubkey>::new();
 
@@ -67,6 +74,14 @@ impl TokenStats {
                 sellers.insert(t.user);
             }
 
+            if t.slot == create.slot && t.user != create.user {
+                *snipers_lamports.get_or_insert(0) += t.sol_amount;
+                println!("user: {:?}, amount: {}", t.user, t.token_amount);
+                *snipers_token.get_or_insert(0) += t.token_amount;
+                snipers.insert(t.user);
+
+            }
+
             // nouveaux agrégats
             *count_per_timestamp.entry(t.timestamp).or_default() += 1;
             *count_per_wallet.entry(t.user).or_default() += 1;
@@ -83,6 +98,26 @@ impl TokenStats {
             min_ts = Some(min_ts.map_or(t.timestamp, |m| m.min(t.timestamp)));
             max_ts = Some(max_ts.map_or(t.timestamp, |m| m.max(t.timestamp)));
         }
+
+        let snipers_count: Option<u64> = if snipers.len() > 0 {Some(snipers.len() as u64)} else {None};
+        let snipers_sol_vol = if let Some(sol_vol) = snipers_lamports {
+            let amount = sol_vol as f64;
+            Some(amount / LAMPORTS_PER_SOL)
+        } else {
+            None
+        };
+        let snipers_token_vol = if let Some(token_vol) = snipers_token {
+            let amount = token_vol as f64;
+            Some(amount / 10f64.powi(6))
+        } else {
+            None
+        };
+        let snipers_initial_share = if let Some(snipers) = snipers_token_vol {
+            let amount = snipers as f64; 
+            Some(amount / (create.token_total_supply as f64 / 10f64.powi(6)))
+        } else {
+            None
+        };
 
         // --- dérivés (aucune re-itération des trades) ---
         let avg_trades_per_second     = avg_count(&count_per_timestamp);
@@ -116,6 +151,11 @@ impl TokenStats {
             full_range_len,
             seconds_with_trades,
             coverage_ratio,
+            snipers_count, 
+            snipers_sol_vol, 
+            snipers_token_vol,
+            snipers_initial_share
+            
         }
     }
 }
