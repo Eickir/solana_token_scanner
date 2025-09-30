@@ -26,6 +26,10 @@ pub struct TokenStats {
     pub full_range_len: usize,
     pub seconds_with_trades: usize,
     pub coverage_ratio: f64,
+    pub creator_has_bought: bool, 
+    pub creator_initial_sol_vol: Option<f64>, 
+    pub creator_initial_token_vol: Option<f64>, 
+    pub creator_initial_token_share: Option<f64>, 
     pub snipers_count: Option<u64>, 
     pub snipers_sol_vol: Option<f64>, 
     pub snipers_token_vol: Option<f64>, 
@@ -38,6 +42,9 @@ impl TokenStats {
         // --- agrégats "historiques" (inchangés) ---
         let mut total_trades = 0usize;
         let mut total_lamports: u128 = 0;
+        let mut creator_has_bought: bool = false;
+        let mut creator_lamports: Option<u64> = None;
+        let mut creator_token: Option<u64> = None;
         let mut snipers_lamports: Option<u64> = None;
         let mut snipers_token: Option<u64> = None;
         let mut buy_lamports: u128 = 0;
@@ -76,9 +83,15 @@ impl TokenStats {
 
             if t.slot == create.slot && t.user != create.user {
                 *snipers_lamports.get_or_insert(0) += t.sol_amount;
-                println!("user: {:?}, amount: {}", t.user, t.token_amount);
                 *snipers_token.get_or_insert(0) += t.token_amount;
                 snipers.insert(t.user);
+
+            }
+
+            if t.slot == create.slot && t.user == create.user {
+                *creator_lamports.get_or_insert(0) += t.sol_amount;
+                *creator_token.get_or_insert(0) += t.token_amount;
+                creator_has_bought = true;
 
             }
 
@@ -119,6 +132,25 @@ impl TokenStats {
             None
         };
 
+        let creator_initial_sol_vol = if let Some(sol_vol) = creator_lamports {
+            let amount = sol_vol as f64;
+            Some(amount / LAMPORTS_PER_SOL)
+        } else {
+            None
+        };
+        let creator_initial_token_vol = if let Some(token_vol) = creator_token {
+            let amount = token_vol as f64;
+            Some(amount / 10f64.powi(6))
+        } else {
+            None
+        };
+        let creator_initial_token_share = if let Some(snipers) = creator_initial_token_vol {
+            let amount = snipers as f64; 
+            Some(amount / (create.token_total_supply as f64 / 10f64.powi(6)))
+        } else {
+            None
+        };
+
         // --- dérivés (aucune re-itération des trades) ---
         let avg_trades_per_second     = avg_count(&count_per_timestamp);
         let avg_trades_per_wallet     = avg_count(&count_per_wallet);
@@ -151,6 +183,10 @@ impl TokenStats {
             full_range_len,
             seconds_with_trades,
             coverage_ratio,
+            creator_has_bought,
+            creator_initial_sol_vol,
+            creator_initial_token_vol,
+            creator_initial_token_share,
             snipers_count, 
             snipers_sol_vol, 
             snipers_token_vol,
