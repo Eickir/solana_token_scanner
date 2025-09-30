@@ -127,6 +127,8 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
                     _ => String::new(),
                 };
 
+                let slot= tx.slot;
+
                 // b) Extraire les blobs logs “Program data:” (Vec<Vec<u8>>)
                 if let Some(blobs) = extract_logs(tx) {
                     for blob in blobs {
@@ -136,14 +138,14 @@ pub async fn run_analysis(rpc_client: &RpcClient, token_address: Pubkey, config:
                             match kind {
                                 EventKind::Create => {
                                     // Utile si tu veux aucher le mint/creator au TGE
-                                    let create = my_platform.decode_create(&blob)?;
+                                    let create = my_platform.decode_create(&signature, slot, &blob)?;
                                     if create.mint == token_address {
                                         decoded_create.push(create);
                                     }
                                 }
                                 EventKind::Trade => {
                                     // Ici ta signature est disponible si ton decode_trade en a besoin
-                                    let trade = my_platform.decode_trade(&signature, &blob)?;
+                                    let trade = my_platform.decode_trade(&signature, slot, &blob)?;
                                     if trade.mint == token_address {
                                         decoded_trade.push(trade);
                                     }
