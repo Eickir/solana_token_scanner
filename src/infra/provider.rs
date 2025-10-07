@@ -41,14 +41,12 @@ impl SolanaRpc {
         Ok(accounts.pop().flatten())
     }
 
-    pub async fn retrieve_pubkey_signatures(&self, pubkey: &Pubkey) -> Result<Vec<RpcConfirmedTransactionStatusWithSignature>> {
+    pub async fn retrieve_pubkey_signatures(&self, pubkey: &Pubkey) -> Result<Vec<Signature>> {
 
-        let transactions = self.client.get_signatures_for_address(&pubkey).await?;
-        Ok(transactions.into_iter().filter_map(|transaction| match transaction.err {
-            Some(_err) => None, 
-            None => Some(transaction)
-        })
-        .collect::<Vec<RpcConfirmedTransactionStatusWithSignature>>())
+        let txs = self.client.get_signatures_for_address(pubkey).await?;
+        Ok(txs.into_iter()
+            .filter_map(|t| t.signature.parse().ok())
+            .collect())
 
     }
 
